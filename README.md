@@ -13,7 +13,6 @@ source("path/to/denoise.R")
 or
 ```
 Rscript path/to/denoise.R
-
 ```
 
 It is recommended to run the script from a directory where all input and output folders are properly structured, and to avoid workspace contamination from previous runs.
