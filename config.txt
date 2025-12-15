@@ -1,0 +1,130 @@
+#note that reads at this point should be primer trimmed, demultiplexed and (roughly) filtered for implausible lengths
+
+# ---------------------- Configuration Parameters ----------------------
+# Parameters are grouped according to the order in which they appear in the script.
+# Parameters marked with "DNC" (Do Not Change) should not be modified unless you fully understand their impact and have a specific reason.
+# Parameters marked with "!!!" are critical for proper operation and should be reviewed carefully before each run.
+
+# ---------------- General Parameters  ----------------
+# Input mode for sequence files: either "fastq" or "fasta"
+# - "fastq": (Recommended) Uses actual quality scores to filter out low-quality reads, improving error suppression and cluster resolution.
+# - "fasta": Applies synthetic (dummy) quality scores and converts sequences into mock FASTQ format for compatibility with downstream steps.
+mode <- "fastq" #!!!
+dummy_qscores_phred <- 22 #DNC
+
+# All samples must end in this suffix preceded by an underscore _
+input_suffix <- "refined" #!!!
+
+# Directory containing the input sample files.
+# This path can be relative to the script location, but full absolute paths are recommended for reproducibility and compatibility in batch processing.
+# Files contained in this folder should have no spaces in their names. # Do remember trailing / please.
+sample_path <- paste0(this.path::here(), "/test/") #!!!
+
+# Number of CPU threads to use for parallel processing.
+# Ensure approximately 4 GB of RAM is available per thread, depending on the number of reads per sample.
+n_thread <- min(parallel::detectCores() - 1, 16) #!!!
+
+# ---------------- FASTQ Quality Filtering Parameters ----------------
+filter_nanopore_batch.suffix_lowq <- "_lowQremoved" #DNC # Suffix for quality-filtered FASTQ output
+filter_nanopore_batch.max_removal_fraction <- 0.1 #DNC # Maximum allowable fraction of reads to remove during quality filtering
+filter_nanopore_batch.mad_threshold <- 3 #DNC # MAD threshold for filtering low-quality reads
+filter_nanopore_batch.output_quality_pdf <- paste0(sample_path,"quality_summary.pdf") #DNC # PDF output for read quality summary
+filter_nanopore_batch.dummy_qscores_phred <- 22 #DNC # Synthetic Phred score used when converting FASTA to FASTQ
+
+# ---------------- Alignment Parameters ----------------
+# Full path to the MAFFT executable.
+# Providing the full path allows for version control, avoids reliance on system PATH,
+# and ensures compatibility with Windows where command-line tools may not be globally accessible.
+# On Linux you can use "which mafft" in the console to get the path.
+align_fastq_with_mafft.my_mafft <- "D:/R/mafft-win/mafft.bat" #example: "/usr/local/bin/mafft"
+
+align_fastq_with_mafft.output_suffix_align <- "_aligned" #DNC # Suffix for MAFFT alignment output
+align_fastq_with_mafft.gap_quality_char <- "!" #DNC # Gap quality character inserted in aligned sequences
+
+# Minimum average quality score required to retain a read during the MAFFT alignment step.
+# Recommended: 16 for R10.4 FAST basecalling, 18 for R10.4 SUP basecalling, 28 for PacBio.
+align_fastq_with_mafft.min_avg_qual <- 16 #!!!
+
+# Whether to overwrite existing alignment output files.
+# Set to FALSE to skip re-aligning files that have already been processed, which can save significant time—especially for large FASTQ files.
+# If the script is restarted after interruption (e.g., memory issues), check for and remove any 0-byte files in the sample directory.
+align_fastq_with_mafft.overwrite_align <- TRUE #DNC
+
+# ---------------- Homopolymer Filtering Parameters ----------------
+
+# min_len: Minimum length of a homopolymer run (i.e., consecutive identical bases) for it to be considered problematic.
+# Runs of the same base equal to or longer than this value are flagged for removal.
+# This helps eliminate sequencing artifacts typical of nanopore reads, especially in low-complexity regions.
+filter_homopolymer_alignment.min_len <- 5 #DNC
+
+# gap_fraction_cutoff: Maximum proportion of gap characters ('-') allowed in alignment columns when assessing nearby positions.
+# When a homopolymer column is flagged for removal, adjacent columns are also evaluated.
+# If these adjacent columns have a high fraction of gaps (above this threshold), they are considered unreliable and also removed.
+# This prevents partially gappy or context-dependent artifacts from persisting after homopolymer filtering.
+filter_homopolymer_alignment.gap_fraction_cutoff <- 0.5 #DNC
+
+# homopolymer_threshold: Fraction of sequences that must contain a homopolymer at a given alignment position for that column to be filtered.
+# For example, if set to 0.5, at least 50% of sequences must show a homopolymer at that position for it to be removed.
+# This reduces over-filtering and ensures that only consistently problematic regions across reads are targeted.
+filter_homopolymer_alignment.homopolymer_threshold <- 0.33 #DNC
+
+# fastq_path: Full path to the input aligned FASTQ file.
+# fastq_dir: Directory where the filtered FASTQ output will be saved.
+# output_suffix: Suffix appended to the filename to denote it has undergone homopolymer filtering (before the ".fastq" extension).
+filter_homopolymer_alignment.output_suffix <- "_nohomo" #DNC
+
+# ---------------- Clustering Parameters ----------------
+# It is nor recommended to change any of these parameters.
+
+sliding_stat.window <- 60L  #DNC              # half-window size for local background smoothing of nonmajor per column
+sliding_stat.fun    <- median   #DNC         # aggregator for background; median is robust to outliers
+
+plotting_html_3d <- FALSE   #plotting UMAP coordinates in 3D HTML widget. #Warning: UMAP is only part of the distance mix and does not represent full distance data. Final clusters may vary marginally.
+#Warning: Will increase runtime substantially.
+
+ambiguity_by_cluster.ambig_thr        <- 0.25   #DNC # ambiguity if ≥2 bases have frequency ≥ this threshold
+ambiguity_by_cluster.min_depth        <- 10L    #DNC # minimum ACGT depth per column for ambiguity evaluation
+
+detect_rare_minor_dual.window        <- sliding_stat.window   #DNC  # background smoothing window (columns) for local nonmajor rate
+detect_rare_minor_dual.max_gap_frac  <- 0.90    #DNC # drop columns with gap fraction above this value
+detect_rare_minor_dual.min_frac      <- 0.01  #DNC # minor fraction above local background required 
+detect_rare_minor_dual.min_reads     <- 5L      #DNC # absolute minimum reads supporting a minor base
+detect_rare_minor_dual.fdr           <- 0.1     #DNC # Benjamini–Hochberg FDR threshold for accepting minor sites
+detect_rare_minor_dual.use_median_bg <- TRUE    #DNC # use median (robust) instead of mean for background smoothing
+
+minpts_sweep.grid                    <- c(seq(9,25,3),30L,35L,40L,50L,60L)  #DNC #candidate HDBSCAN minPts #do not go lower than 9, the script handles a fallback which can go lower
+minpts_sweep.weights                 <- c(noise=0.1, prob=0.05, stability=0.05, ambig=0.55, parsimony=0.25)  #DNC # objective weights
+
+# --- Parameters for Initial Clustering---
+
+generate_consensus_with_export.min_cluster_size <- 6  #DNC
+# Minimum number of sequences required in a cluster to generate a consensus.
+# Clusters smaller than this will be ignored to avoid generating low-confidence consensus sequences.
+
+generate_consensus_with_export.output_suffix <- "_final"  #DNC
+# Suffix to append to the output FASTA files that contain the generated consensus sequences.
+# Used to distinguish between different stages or types of consensus output.
+
+generate_consensus_with_export.iupac_min_count <- 3  #DNC
+# Minimum number of reads that must support a minor base for an IUPAC ambiguity code to be introduced at that position.
+# Prevents spurious minor bases from being included due to sequencing errors or outliers.
+
+generate_consensus_with_export.iupac_min_prop <- 0.25  #DNC
+# Minimum fraction of reads supporting a minor base for it to be considered in IUPAC ambiguity calculation.
+# Works together with iupac_min_count to determine whether minor variants are meaningful enough to be encoded.
+
+# --- Parameters for Cluster Refinement ---
+
+merge_and_regenerate_consensus.iupac_min_prop <- 0.25  #DNC
+# Minimum fraction of sequences that must support a minor variant for it to be included in the consensus as an IUPAC ambiguity code.
+
+merge_and_regenerate_consensus.min_cluster_size <- 6  #DNC
+# Minimum number of sequences required in a cluster or group to justify consensus calculation.
+# Smaller groups are ignored to prevent unstable or spurious consensus sequences.
+
+merge_and_regenerate_consensus.iupac_min_count <- 3  #DNC
+# Minimum count of sequences supporting a variant base before it can be represented with an IUPAC ambiguity code.
+
+merge_and_regenerate_consensus.max_pairwise_distance <- 0  #!!!
+# Maximum allowed pairwise distance between sequences when merging. 
+# A value of 0 disables merging unless sequences are identical.
