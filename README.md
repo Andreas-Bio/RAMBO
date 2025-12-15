@@ -336,15 +336,25 @@ B. Merged cluster read files: similar to earlier per-cluster files, the pipeline
 ---
 
 To recap the file outputs you will see after a successful run (for each sample, assuming default suffixes):
+
 •	`<sample>_lowQremoved.fastq`: Cleaned reads after initial quality filter (FASTQ mode only).
+
 •	`<sample>_aligned.fastq`: MAFFT-aligned reads with quality info.
+
 •	`<sample>_aligned_nohomo.fastq`: Aligned reads after homopolymer/gap artifact removal.
+
 •	`<sample>_CL*.fasta`: (Multiple files) Raw reads belonging to each cluster (produced in consensus step).
+
 •	`<sample>_final.fasta`: Consensus sequences for each cluster before merging (with IAD, IMD, etc. in headers).
+
 •	`<sample>_final_merged.fasta`: Final consensus sequences after merging (with updated IMD, MDC in headers).
+
 •	`results.fasta`: Combined all-sample final consensus sequences (each header prefixed by sample and including metrics).
+
 •	Quality and report files: quality_summary.pdf (if FASTQ filtering done) and possibly a log or summary CSV of cluster metrics.
+
 These are the primary outputs. The intermediate FASTQ files (_lowQremoved, _aligned, _aligned_nohomo) can be large; you may delete them if not needed once you have the final results, but it’s wise to keep them until you’ve verified the results.fasta. The per-cluster FASTA files are mainly for debugging or traceability and can also be hefty for large datasets.
+
 
 ---
 
