@@ -282,6 +282,8 @@ Both methods run the same pipeline. The choice depends on whether you prefer int
 It is recommended to run the script from a directory where all input and output folders are properly structured, and to avoid workspace contamination from previous runs.
 The folder specified in the config file should be empty, except for the designated input files in fastq or fasta format.
 
+**Test case**: Unzip the file test.zip into the same directory as denoise.R and run the pipeline with no changes.
+
 ---
 
 ## Main Processing Steps
