@@ -136,7 +136,7 @@ registerDoParallel(cl)
 
 
 results_cluster <- foreach(i = seq_along(fastq_files),
-                           .packages = c("ShortRead", "Biostrings", "dbscan", "Rcpp", "reshape2", "magrittr", "plotly", "htmlwidgets", "RColorBrewer"),
+                           .packages = c("ShortRead", "Biostrings", "dbscan", "Rcpp", "reshape2", "magrittr", "plotly", "htmlwidgets", "RColorBrewer", "uwot"),
                            .inorder = TRUE) %dopar% 
 {                             
   file_path <- fastq_files[i]
@@ -449,4 +449,5 @@ temp_matches <- match(summary_df[,c(1,2)] %>% apply(.,1,paste0,collapse="__"), n
 final_out <- cbind(summary_df, seq=all_cluster[temp_matches])
 
 DNAStringSet(final_out[,"seq"]  %>% gsub("-","",.)) %>% setNames(rownames(final_out)) %>% writeXStringSet(., file=paste0(sample_path, "results.fasta"))
+
 
